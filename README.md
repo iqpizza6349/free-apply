@@ -12,6 +12,7 @@
 
 (해당 파트는 라이브러리들이 추가될 때마다 수시로 변할 예정입니다.)
 * FastAPI 0.108.0
+* SQLAlchemy 2.0.25
 
 ## How Can you contribute our project?
 
