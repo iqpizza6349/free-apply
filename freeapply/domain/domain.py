@@ -10,7 +10,6 @@ Attributes:
     Base(declarative_base): SQLAlchemy level of base
 
 Classes:
-    Property: defines each column that use for domain
     DomainDynamicCreation: create domain by dynamic
 
 author: iqpizza6349
@@ -18,17 +17,13 @@ author: iqpizza6349
 
 from typing import List
 
-from sqlalchemy import Column, Integer, Table, MetaData, inspect, Engine
+from sqlalchemy import Column, Integer, Table, MetaData, inspect, Engine, ForeignKeyConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session
 
+from freeapply.domain.property import Property, ForeignProperty
+
 Base = declarative_base()
-
-
-class Property(object):
-    def __init__(self, _type, name: str):
-        self.typo = _type
-        self.name = name
 
 
 class DomainDynamicCreation:
@@ -55,19 +50,36 @@ class DomainDynamicCreation:
         if properties is None or properties == []:
             raise ValueError("Property list is empty")
 
-        session = Session(self.engine)
-
-        Table(
+        table = Table(
             domain_name,
             self.metadata,
             Column('id', Integer, primary_key=True),
-            *(Column(prop.name, prop.typo) for prop in properties)
+            *(Column(prop.name, prop.type) for prop in properties)
         )
+        table.create(self.engine)
         self.metadata.create_all(self.engine)
-        session.commit()
-        session.close()
+
+    def create_relationship(self, parent_domain, child_domain, foreign: ForeignProperty):
+        parent = self.metadata.tables[parent_domain]
+        child = self.metadata.tables[child_domain]
+
+        foreign_constraint = ForeignKeyConstraint([foreign.column], [parent.c.id])
+        child.append_constraint(foreign_constraint)
 
     def has_domain(self, domain_name: str) -> bool:
         inspector = inspect(self.engine)
         return inspector.has_table(domain_name)
+
+    def has_relation(self, parent_domain, child_domain) -> bool:
+        parent = self.metadata.tables[parent_domain]
+        child = self.metadata.tables[child_domain]
+
+        parent_inspector = inspect(parent)
+        child_inspector = inspect(child)
+
+        # Retrieve relationships from foreign keys
+        parent_relationships = [fk.target_fullname for fk in parent_inspector.foreign_keys]
+        child_relationships = [fk.target_fullname for fk in child_inspector.foreign_keys]
+
+        return parent_relationships != [] or child_relationships != []
 
